@@ -1,0 +1,95 @@
+flowchart TD
+    classDef inputStyle fill:#EDE7F6,stroke:#5E35B1,stroke-width:2px,color:#311B92
+    classDef agent1Style fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1
+    classDef agent2Style fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#E65100
+    classDef agent3Style fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef decisionStyle fill:#FFFDE7,stroke:#F9A825,stroke-width:2px,color:#5D4037
+    classDef evalStyle fill:#F5F5F5,stroke:#616161,stroke-width:2px,color:#212121
+
+    subgraph S1 ["1. INPUT DATA & PREPROCESSING"]
+        direction TB
+        IN1(["Pengguna mengunggah naskah .docx<br/>di halaman Alat"])
+        IN2{"Berekstensi .docx?"}
+        IN3["Tolak dengan pesan galat"]
+        PRE1["Simpan salinan sementara;<br/>baca seluruh paragraf secara hanya-baca"]
+        PRE2["Ekstraksi fitur mentah per paragraf:<br/>teks, style, huruf, perataan, penomoran,<br/>spasi, indentasi, posisi"]
+        PRE3["Transformasi menjadi 437 fitur:<br/>400 TF-IDF + 37 metadata<br/>(20 tipografi/tata letak, 7 gaya Word, 10 pola teks)"]
+        IN1 --> IN2
+        IN2 -- "Tidak" --> IN3
+        IN2 -- "Ya" --> PRE1 --> PRE2 --> PRE3
+    end
+
+    subgraph S2 ["2. PROSES UTAMA (TIGA AGEN)"]
+        direction TB
+
+        subgraph A1 ["Agen 1 - Inspector (machine learning, tanpa aturan)"]
+            A1_1["Random Forest: probabilitas 9 kelas;<br/>label = kelas tertinggi, nilainya = skor keyakinan"]
+            A1_2["Tandai ambigu bila keyakinan di bawah 0,70"]
+            A1_3["Terbitkan Draft Blueprint"]
+            A1_1 --> A1_2 --> A1_3
+        end
+
+        subgraph A2T1 ["Agen 2 - Quality Critic, Tier 1 (audit blueprint)"]
+            T1_1["Aturan pasti per paragraf;<br/>pembaruan zona dokumen;<br/>validasi urutan bab; rantai aturan; pemeriksaan akhir"]
+            T1_2{"Ada koreksi baru<br/>dan iterasi belum 3?"}
+            T1_3["Kirim arahan koreksi beserta alasan;<br/>Agen 1 menerapkan ke blueprint"]
+            T1_4["Approved Blueprint + log koreksi<br/>+ daftar paragraf yang perlu dicek"]
+            T1_1 --> T1_2
+            T1_2 -- "Ya" --> T1_3
+            T1_2 -- "Tidak (konvergen)" --> T1_4
+        end
+
+        subgraph A3 ["Agen 3 - Formatting Actuator"]
+            A3_1["Penyusunan di atas salinan template resmi UEU:<br/>renderer per label; paragraf disalin utuh,<br/>hanya properti format yang diubah"]
+            A3_2["Heading bernomor, section Romawi/Arab, header,<br/>caption bernomor, tabel APA 7,<br/>Daftar Isi/Tabel/Gambar sebagai field"]
+            A3_3["Perbaikan terarah per kriteria;<br/>sidik isi dibandingkan sebelum-sesudah,<br/>perbaikan dibatalkan bila isi berubah"]
+            A3_1 --> A3_2
+        end
+
+        subgraph A2T2 ["Agen 2 - Quality Critic, Tier 2 (uji penerimaan berkas)"]
+            T2_1["Uji 8 kriteria K1-K8;<br/>nilai target dari konfigurasi aturan format"]
+            T2_2{"Semua lolos?"}
+            T2_3{"Daftar cacat berubah<br/>dan iterasi belum 3?"}
+            T2_4["Daftar cacat terstruktur:<br/>kriteria, lokasi, nilai aktual, nilai target"]
+            T2_1 --> T2_2
+            T2_2 -- "Tidak" --> T2_3
+            T2_3 -- "Ya" --> T2_4
+        end
+
+        PRE3 --> A1_1
+        A1_3 --> T1_1
+        T1_3 -->|"putaran Tier 1"| T1_1
+        T1_4 --> A3_1
+        A3_2 --> T2_1
+        T2_4 --> A3_3
+        A3_3 -->|"putaran Tier 2"| T2_1
+    end
+
+    subgraph S3 ["3. KELUARAN SISTEM & EVALUASI"]
+        direction TB
+        OUT1["Skor kepatuhan = kriteria lolos / 8;<br/>status PASS atau FAIL; sisa cacat"]
+        POOL["Koreksi Agen 2 dicatat ke pool koreksi<br/>(status: belum ditinjau)"]
+        RL["Di luar alur pengguna:<br/>peneliti meninjau pool, melatih kandidat,<br/>uji non-regresi (toleransi 0,005)"]
+        EV["Evaluasi TA-2 pada naskah uji baru, sistem dibekukan:<br/>EX-1 s.d. EX-8 (macro-F1, ablasi, McNemar,<br/>kepatuhan, keutuhan isi, waktu, injeksi cacat)"]
+        T2_2 -- "Ya" --> OUT1
+        T2_3 -- "Tidak" --> OUT1
+        T1_3 -.-> POOL
+        POOL -.-> RL
+        RL -.->|"versi model baru"| A1_1
+        OUT1 -.-> EV
+    end
+
+    subgraph S4 ["4. TAMPILAN & ANTARMUKA PENGGUNA"]
+        direction TB
+        UI1["Halaman Alat: status tiga agen dan log proses"]
+        UI2["Skor, hasil 8 kriteria, sisa cacat,<br/>log koreksi beserta alasan,<br/>paragraf yang perlu dicek penulis"]
+        UI3(["Unduh: (Asdoku) - nama berkas.docx;<br/>salinan unggahan dihapus"])
+        OUT1 --> UI1 --> UI2 --> UI3
+    end
+
+    class IN1,IN3,PRE1,PRE2,PRE3,UI1,UI2,UI3,POOL inputStyle
+    class A1_1,A1_2,A1_3 agent1Style
+    class T1_1,T1_3,T1_4,T2_1,T2_4,OUT1 agent2Style
+    class A3_1,A3_2,A3_3 agent3Style
+    class IN2,T1_2,T2_2,T2_3 decisionStyle
+    class RL,EV evalStyle

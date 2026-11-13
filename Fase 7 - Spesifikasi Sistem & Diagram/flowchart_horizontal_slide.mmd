@@ -1,0 +1,35 @@
+flowchart LR
+    classDef inputStyle fill:#EDE7F6,stroke:#5E35B1,stroke-width:2px,color:#311B92
+    classDef agent1Style fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1
+    classDef agent2Style fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#E65100
+    classDef agent3Style fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef evalStyle fill:#F5F5F5,stroke:#616161,stroke-width:2px,color:#212121
+
+    subgraph IN ["1. Input"]
+        A["Naskah .docx<br/>format bebas"] --> B["437 fitur<br/>400 TF-IDF + 37 metadata"]
+    end
+
+    subgraph MAS ["2. Tiga agen, dua putaran umpan balik"]
+        B --> C["Agen 1 - Inspector<br/>Random Forest"]
+        C -->|"Draft Blueprint"| D["Agen 2 - Quality Critic<br/>aturan pedoman + konteks dokumen"]
+        D -->|"Tier 1: arahan koreksi"| C
+        D -->|"Approved Blueprint"| E["Agen 3 - Formatting Actuator<br/>penyusunan + perbaikan terarah"]
+        E -->|"berkas hasil"| D
+        D -->|"Tier 2: daftar cacat"| E
+    end
+
+    subgraph OUT ["3. Keluaran"]
+        D --> G["Skor 8 kriteria, sisa cacat,<br/>log koreksi, paragraf perlu dicek"]
+        G --> H["Unduh<br/>(Asdoku) - nama berkas.docx"]
+    end
+
+    subgraph EVAL ["4. Di luar alur pengguna"]
+        D -.-> F["Pool koreksi<br/>ditinjau peneliti"]
+        F -.->|"latih ulang + uji non-regresi"| C
+    end
+
+    class A,B,G,H inputStyle
+    class C agent1Style
+    class D agent2Style
+    class E agent3Style
+    class F evalStyle
